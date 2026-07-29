@@ -99,30 +99,24 @@ from rclpy.node import Node
 from sensor_msgs.msg import Joy, JointState
 from geometry_msgs.msg import Point
 
-# DualSense indices, confirmed live via `ros2 topic echo /joy` on this
-# controller/driver combo. Note this driver's buttons array is only 13
-# elements (0-12) — there is no touchpad-click button in it, so mode
-# toggle uses Share/Create (8) instead.
-AXIS_LEFT_X = 0   # confirmed live 2026-07-23 (used only incidentally so far)
-AXIS_LEFT_Y = 1   # confirmed live 2026-07-23
-AXIS_L2 = 2
-AXIS_RIGHT_X = 3
-AXIS_RIGHT_Y = 4
-AXIS_R2 = 5
-# AXIS_DPAD_X is not independently live-captured — it's determined by
-# elimination from data that IS live-confirmed: this driver's axes array has
-# exactly 8 slots (0-7, confirmed via capture), and every other slot
-# (0,1,2,3,4,5,7) is independently confirmed above/below, leaving 6 as the
-# only remaining candidate for the hat's X axis. A hat's X/Y are always
-# reported as a consecutive pair by this driver, so this isn't a blind guess
-# about ordering, but flagging it since it wasn't captured by directly
-# wiggling D-pad left/right the way every other axis here was.
-AXIS_DPAD_X = 6  # hat axis: +1.0 = right, -1.0 = left, 0.0 = released
-AXIS_DPAD_Y = 7  # hat axis, not a button: +1.0 = up, -1.0 = down, 0.0 = released
-BUTTON_R1 = 5
-BUTTON_MODE_TOGGLE = 8  # Share/Create
-BUTTON_CIRCLE = 1
-BUTTON_SQUARE = 3
+# DualSense indices, re-confirmed live via `ros2 topic echo /joy` on the
+# Jetson (2026-07-29) — this machine's controller/driver combo reports a
+# DIFFERENT order for L2/R2/right-stick and the face buttons than what was
+# previously confirmed on the other machine this file was developed on.
+# This driver's buttons array has 14 elements (0-13); there is no
+# touchpad-click button in it, so mode toggle uses Share/Create (8) instead.
+AXIS_LEFT_X = 0   # confirmed live 2026-07-29
+AXIS_LEFT_Y = 1   # confirmed live 2026-07-29
+AXIS_RIGHT_X = 2  # confirmed live 2026-07-29 (was 3 on the other machine)
+AXIS_L2 = 3       # confirmed live 2026-07-29 (was 2 on the other machine)
+AXIS_R2 = 4       # confirmed live 2026-07-29 (was 5 on the other machine)
+AXIS_RIGHT_Y = 5  # confirmed live 2026-07-29 (was 4 on the other machine)
+AXIS_DPAD_X = 6  # hat axis: +1.0 = right, -1.0 = left, 0.0 = released — confirmed live 2026-07-29
+AXIS_DPAD_Y = 7  # hat axis, not a button: +1.0 = up, -1.0 = down, 0.0 = released — confirmed live 2026-07-29
+BUTTON_R1 = 5  # confirmed live 2026-07-29
+BUTTON_MODE_TOGGLE = 8  # Share/Create — confirmed live 2026-07-29
+BUTTON_CIRCLE = 2  # confirmed live 2026-07-29 (was 1 on the other machine)
+BUTTON_SQUARE = 0  # confirmed live 2026-07-29 (was 3 on the other machine)
 
 
 class ArmTeleopNode(Node):

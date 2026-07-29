@@ -57,7 +57,7 @@ before ever touching the Jetson side.
 
 ## Homing (needed — not yet implemented anywhere)
 Jetson side currently just *assumes* the arm powers up at a fixed pose
-(base 0 deg, shoulder/elbow/wrist 90 deg, gripper open — see
+(base 0 deg, shoulder/elbow 90 deg, wrist 15 deg, gripper open — see
 `home_position` in `arm_params.yaml`) and seeds its internal joint-angle
 estimate with that assumption. That is **not** real homing — there is no
 sensor confirming the arm is actually there, so if it powers up anywhere
@@ -73,6 +73,10 @@ Needed from Teensy/machine team:
   flag which is more feasible).
 
 Joint limits are also currently placeholders pending real mechanical
-confirmation: base -180..180 deg, shoulder 0..200 deg (not symmetric —
-0 is one end of travel), elbow/wrist 0..180 deg. Flag if any of these
-don't match real hardware stops.
+confirmation (kept in sync with `arm_params.yaml`, which is the source of
+truth — flag here if this drifts out of sync again): base -180..180 deg,
+shoulder 0..120 deg (not symmetric — 0 is one end of travel; tightened
+from an earlier 0..200 deg placeholder, see `arm_params.yaml` for why),
+elbow 0..180 deg, wrist 0..30 deg (hinge/pivot, not a twist joint — see
+`arm_params.yaml` and the urdf). Flag if any of these don't match real
+hardware stops.
