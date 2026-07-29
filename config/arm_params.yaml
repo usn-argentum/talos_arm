@@ -1,0 +1,75 @@
+# talos_arm placeholder kinematic parameters
+# PLACEHOLDER VALUES — replace with real numbers from machine team.
+# Nothing in code should hardcode these; every node reads from here.
+
+arm_teleop_node:
+  ros__parameters:
+    # --- Structure (confirm DOF with machine team ASAP, this one is structural) ---
+    joint_names: ["joint1", "joint2", "joint3", "joint4"]
+    num_joints: 4
+
+    # --- Joint limits (radians) — PLACEHOLDER target ranges, NOT yet
+    #     confirmed against real hardware/machine team. Requested ranges:
+    #     base (joint1):          -180..180 deg  (-pi..pi)
+    #     shoulder (joint2):         0..120 deg  (0..2.0944), NOT symmetric —
+    #       0 is one end of travel, not a centered rest value. TIGHTENED
+    #       from the original 0..200 deg placeholder (2026-07-23): at 200
+    #       deg (or anything past ~121 deg) with the elbow fully extended,
+    #       the end-effector's software-reachable pose goes BELOW the arm's
+    #       own mount surface (z=0 in base_link) — geometrically impossible,
+    #       the arm would pass through its own base. 120 deg is the exact
+    #       point (via FK) where full elbow extension reaches z=0, so it's
+    #       the tightest cap that still permits the full designed shoulder
+    #       sweep without that overtravel. This is a placeholder-config fix
+    #       only — it does NOT replace the need for a real hardware limit
+    #       switch + firmware homing on the Teensy side (still an open
+    #       requirement, see docs/teensy_interface_spec.md): a software
+    #       limit only protects the arm if the Jetson's internal joint-angle
+    #       estimate is accurate, which isn't guaranteed without real homing.
+    #     elbow (joint3):            0..180 deg  (0..pi)
+    #     wrist (joint4):            0..30 deg  (0..0.5236). CHANGED
+    #       (2026-07-23): machine team confirmed the wrist is a hinge/pivot
+    #       (~25-30 deg of travel), not a twist joint — see the urdf's
+    #       joint4 axis, also corrected. This number is the upper end of
+    #       the stated 25-30 deg range and is still PENDING precise
+    #       measurement/confirmation from machine team, same as every other
+    #       placeholder here.
+    joint_limits_lower: [-3.14159265, 0.0,        0.0,        0.0]
+    joint_limits_upper: [ 3.14159265, 2.09439510, 3.14159265, 0.52359878]
+
+    # --- Home position (radians) — base 0 deg, shoulder/elbow 90 deg,
+    #     wrist 15 deg (midpoint of its new 0..30 deg hinge range — CHANGED
+    #     2026-07-23 along with the wrist range above; the old 90 deg value
+    #     is now out of range entirely and would just get silently clamped
+    #     to 30 deg every cycle if left as-is. Which end of the real hinge
+    #     is actually neutral/home is NOT yet confirmed by machine team —
+    #     15 deg is a placeholder midpoint, not a measured value.
+    #     This is the pose the Jetson side ASSUMES on startup and is what
+    #     Teensy firmware should drive to and report once real limit-switch
+    #     homing exists (see docs/teensy_interface_spec.md) — it is not
+    #     itself a verified physical homing result.
+    home_position: [0.0, 1.57079633, 1.57079633, 0.26179939]
+
+    # --- Link lengths (metres) — placeholder, used for FK/IK ---
+    link_lengths: [0.15, 0.20, 0.20, 0.10]
+
+    # --- Mount offset relative to base_link (x y z, metres) ---
+    mount_offset: [0.0, 0.0, 0.10]
+
+    # --- Teleop scaling ---
+    # joint-space mapping: right stick X/Y -> joint1/joint2
+    #   L2/R2 -> joint3 (paired +/-: L2 negative, R2 positive, fully
+    #     bidirectional — do NOT go back to one-trigger-per-joint, that
+    #     scheme let a joint ratchet to its limit with no way back)
+    #   D-pad up/down -> joint4 (hat axis, not a button)
+    joint_jog_speed: 0.8       # rad/s at full stick deflection, joint-space mode
+    cartesian_speed: 0.15      # m/s at full stick deflection, cartesian mode
+    deadman_button: "R1"       # arm deadman (drive uses L1, see rover_drive config)
+    mode_toggle_button: "share"  # touchpad-click isn't in this driver's /joy buttons array
+
+    # --- Gripper (placeholder prismatic slide, mechanism TBD from machine team) ---
+    gripper_joint_name: "gripper_joint"
+    gripper_open_position: 0.02   # metres, matches urdf gripper_joint upper limit
+    gripper_close_position: 0.0   # metres, matches urdf gripper_joint lower limit
+    gripper_open_button: "circle"
+    gripper_close_button: "square"

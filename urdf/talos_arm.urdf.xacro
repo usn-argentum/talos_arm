@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<!--
+  Placeholder arm URDF. Link lengths here MUST match config/arm_params.yaml
+  link_lengths — keep them in sync manually until this gets generated from
+  one source. Replace geometry/lengths once machine team's CAD lands
+  (same SolidWorks export workflow used for the drive URDF applies here).
+-->
+<robot name="talos_arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <link name="base_link"/>
+
+  <link name="arm_base_link"/>
+
+  <joint name="mount_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_base_link"/>
+    <origin xyz="0.0 0.0 0.10" rpy="0 0 0"/>
+  </joint>
+
+  <!-- joint1 -->
+  <link name="link1">
+    <visual>
+      <geometry><cylinder radius="0.02" length="0.15"/></geometry>
+      <origin xyz="0 0 0.075" rpy="0 0 0"/>
+    </visual>
+  </link>
+  <joint name="joint1" type="revolute">
+    <parent link="arm_base_link"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <!-- PLACEHOLDER range, not yet hardware-confirmed — see arm_params.yaml -->
+    <limit lower="-3.14159265" upper="3.14159265" effort="10" velocity="1.0"/>
+  </joint>
+
+  <!-- joint2 -->
+  <link name="link2">
+    <visual>
+      <geometry><cylinder radius="0.02" length="0.20"/></geometry>
+      <origin xyz="0 0 0.10" rpy="0 0 0"/>
+    </visual>
+  </link>
+  <joint name="joint2" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 0.15" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <!-- PLACEHOLDER range, not yet hardware-confirmed — see arm_params.yaml.
+         0..200 deg, NOT symmetric — 0 is one end of travel, not centered. -->
+    <limit lower="0.0" upper="3.49065850" effort="10" velocity="1.0"/>
+  </joint>
+
+  <!-- joint3 -->
+  <link name="link3">
+    <visual>
+      <geometry><cylinder radius="0.02" length="0.20"/></geometry>
+      <origin xyz="0 0 0.10" rpy="0 0 0"/>
+    </visual>
+  </link>
+  <joint name="joint3" type="revolute">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0 0 0.20" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <!-- PLACEHOLDER range, not yet hardware-confirmed — see arm_params.yaml -->
+    <limit lower="0.0" upper="3.14159265" effort="10" velocity="1.0"/>
+  </joint>
+
+  <!-- joint4 / wrist -->
+  <link name="link4">
+    <visual>
+      <geometry><cylinder radius="0.015" length="0.10"/></geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+    </visual>
+  </link>
+  <joint name="joint4" type="revolute">
+    <parent link="link3"/>
+    <child link="link4"/>
+    <origin xyz="0 0 0.20" rpy="0 0 0"/>
+    <!-- Machine team confirmed (2026-07-23): wrist is a hinge/pivot moving
+         up/down, NOT a twist about the link's own length — axis corrected
+         from "0 0 1" to match shoulder/elbow's pivot axis. This was
+         previously modeled wrong; see arm_params.yaml for the fallout
+         (joint4 used to have zero effect on end-effector position because
+         the old axis was collinear with the link offset below — that's no
+         longer true with this axis). -->
+    <axis xyz="0 1 0"/>
+    <!-- PLACEHOLDER range — real hinge travel is ~25-30 deg per machine
+         team, NOT yet precisely measured/confirmed. Using the upper end
+         (30 deg) here; see arm_params.yaml. -->
+    <limit lower="0.0" upper="0.5235987755982988" effort="10" velocity="1.0"/>
+  </joint>
+
+  <link name="gripper_link">
+    <visual>
+      <geometry><box size="0.03 0.03 0.05"/></geometry>
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+    </visual>
+  </link>
+  <!-- Placeholder DOF — real mechanism TBD from machine team. Prismatic
+       slide is just enough to exercise the joystick -> command -> tf path. -->
+  <joint name="gripper_joint" type="prismatic">
+    <parent link="link4"/>
+    <child link="gripper_link"/>
+    <origin xyz="0 0 0.10" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="0.0" upper="0.02" effort="5" velocity="0.05"/>
+  </joint>
+
+</robot>
