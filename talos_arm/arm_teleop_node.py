@@ -2,12 +2,20 @@
 """
 talos_arm teleop node.
 
-Reads /joy, gates on R1 (arm deadman — drive uses L1, kept separate so both
-can be held at once), and publishes joint commands to /arm_joint_cmd.
+Reads /joy, gates on R1 (arm deadman) AND the shared /teleop_mode being
+ARM_JOINT or ARM_CARTESIAN (published by teleop_mode_switch's
+mode_switch_node, which cycles DRIVE/ARM_JOINT/ARM_CARTESIAN on R1+Share
+— see that package), and publishes joint commands to /arm_joint_cmd.
+R1 alone no longer toggles anything here; it's purely this node's own
+deadman on top of the shared mode selection, same pattern rover_drive
+uses with L1 for DRIVE mode (see teleop_mode_switch's cmd_vel_gate_node).
 
-Two modes, toggled with mode_toggle_button (edge-triggered). Deliberately
-DIFFERENT stick/button layouts between the two — joint-space doesn't mirror
-cartesian's layout, they're independent schemes:
+Two modes, selected via the shared mode above (previously toggled
+internally by this node's own mode_toggle_button — that responsibility
+moved out to teleop_mode_switch so drive/arm could become mutually
+exclusive on one controller). Deliberately DIFFERENT stick/button layouts
+between the two — joint-space doesn't mirror cartesian's layout, they're
+independent schemes:
 
   - joint-space: right stick Y -> joint2 (shoulder), up = shoulder up (sign
                  flipped 2026-07-23 — it used to be inverted: stick down
@@ -96,8 +104,19 @@ from ament_index_python.packages import get_package_share_directory
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Joy, JointState
 from geometry_msgs.msg import Point
+from std_msgs.msg import String
+
+# Matches teleop_mode_switch's publisher QoS - TRANSIENT_LOCAL so this
+# node picks up the current mode immediately on startup/restart instead
+# of waiting for the next mode change.
+MODE_QOS = QoSProfile(
+    depth=1,
+    durability=DurabilityPolicy.TRANSIENT_LOCAL,
+    reliability=ReliabilityPolicy.RELIABLE,
+)
 
 # DualSense indices, re-confirmed live via `ros2 topic echo /joy` on the
 # Jetson (2026-07-29) — this machine's controller/driver combo reports a
@@ -114,7 +133,6 @@ AXIS_RIGHT_Y = 5  # confirmed live 2026-07-29 (was 4 on the other machine)
 AXIS_DPAD_X = 6  # hat axis: +1.0 = right, -1.0 = left, 0.0 = released — confirmed live 2026-07-29
 AXIS_DPAD_Y = 7  # hat axis, not a button: +1.0 = up, -1.0 = down, 0.0 = released — confirmed live 2026-07-29
 BUTTON_R1 = 5  # confirmed live 2026-07-29
-BUTTON_MODE_TOGGLE = 8  # Share/Create — confirmed live 2026-07-29
 BUTTON_CIRCLE = 2  # confirmed live 2026-07-29 (was 1 on the other machine)
 BUTTON_SQUARE = 0  # confirmed live 2026-07-29 (was 3 on the other machine)
 
@@ -158,8 +176,16 @@ class ArmTeleopNode(Node):
         # really here.
         self.current_angles = list(self.home_position)[: self.num_joints]
         self.gripper_position = self.gripper_open_position
+        # Driven by teleop_mode_switch's /teleop_mode (see joy_callback and
+        # mode_callback below), not toggled internally by this node anymore
+        # - R1+Share now cycles a 3-way DRIVE/ARM_JOINT/ARM_CARTESIAN mode
+        # shared with rover_drive, so ownership of "which mode is active"
+        # moved to teleop_mode_switch. DRIVE is the safe startup default
+        # until the first /teleop_mode message arrives (transient_local
+        # QoS on that topic means it arrives immediately if
+        # mode_switch_node is already running).
+        self.global_mode = "DRIVE"
         self.cartesian_mode = False
-        self._prev_mode_button = False
         self._ik_unreachable_warned = False
         self._singularity_warned = False
 
@@ -194,8 +220,16 @@ class ArmTeleopNode(Node):
         self.create_subscription(Joy, "/joy", self.joy_callback, 10)
         # Feedback from Teensy (or ros2 topic pub during bench testing)
         self.create_subscription(JointState, "/arm_joint_states", self.feedback_callback, 10)
+        # Shared mode from teleop_mode_switch - see global_mode comment above.
+        self.create_subscription(String, "/teleop_mode", self.mode_callback, MODE_QOS)
 
-        self.get_logger().info("talos_arm teleop node up — joint-space mode active")
+        self.get_logger().info("talos_arm teleop node up — waiting for ARM_JOINT/ARM_CARTESIAN mode")
+
+    def mode_callback(self, msg: String):
+        if msg.data != self.global_mode:
+            self.global_mode = msg.data
+            self.cartesian_mode = self.global_mode == "ARM_CARTESIAN"
+            self.get_logger().info(f"mode -> {self.global_mode}")
 
     def feedback_callback(self, msg: JointState):
         # Keep a running estimate of actual angles — cartesian mode integrates
@@ -207,19 +241,11 @@ class ArmTeleopNode(Node):
                     self.current_angles[idx] = msg.position[i] if i < len(msg.position) else self.current_angles[idx]
 
     def joy_callback(self, msg: Joy):
+        if self.global_mode not in ("ARM_JOINT", "ARM_CARTESIAN"):
+            return  # shared mode is DRIVE — arm stays put regardless of R1
+
         if len(msg.buttons) <= BUTTON_R1 or not msg.buttons[BUTTON_R1]:
             return  # arm deadman not held — publish nothing, stay put
-
-        # Edge-triggered mode toggle
-        mode_button = bool(msg.buttons[BUTTON_MODE_TOGGLE]) if len(msg.buttons) > BUTTON_MODE_TOGGLE else False
-        if mode_button and not self._prev_mode_button:
-            self.cartesian_mode = not self.cartesian_mode
-            # No seeding needed: cartesian mode integrates joint velocities
-            # directly from current_angles every cycle (same pattern
-            # joint-space mode already uses), so there's no separate target
-            # state to initialize on entry.
-            self.get_logger().info(f"mode -> {'cartesian' if self.cartesian_mode else 'joint-space'}")
-        self._prev_mode_button = mode_button
 
         if self.cartesian_mode:
             targets = self._cartesian_step(msg)

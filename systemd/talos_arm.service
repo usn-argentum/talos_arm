@@ -1,0 +1,15 @@
+[Unit]
+Description=talos_arm robot_state_publisher + arm_teleop_node
+After=network-online.target joy_teleop.service teleop_mode_switch.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=argentum
+Environment="ROS_DOMAIN_ID=0"
+ExecStart=/bin/bash -c "source /opt/ros/jazzy/setup.bash && source /home/argentum/robocup_ws/install/setup.bash && ros2 launch talos_arm bringup.launch.py"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
