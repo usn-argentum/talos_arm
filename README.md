@@ -1,7 +1,8 @@
 # talos_arm — Teensy interface
 
 Quick reference for the micro-ROS client on Teensy. Full spec:
-[`docs/teensy_interface_spec.md`](docs/teensy_interface_spec.md).
+[`docs/teensy_interface_spec.md`](docs/teensy_interface_spec.md). Topics-only
+definitions: [`docs/topics.yaml`](docs/topics.yaml).
 
 ## Topics
 

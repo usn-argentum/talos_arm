@@ -1,0 +1,17 @@
+# talos_arm topic interface — Jetson <-> Teensy (micro-ROS client)
+# See teensy_interface_spec.md for full context/rationale.
+
+/arm_joint_cmd:
+  direction: jetson_to_teensy
+  type: sensor_msgs/msg/JointState
+  fields:
+    name: string[]      # ["joint1", "joint2", "joint3", "joint4", "gripper_joint"]
+    position: float64[] # radians
+  rate_hz: 50
+
+/arm_joint_states:
+  direction: teensy_to_jetson
+  type: sensor_msgs/msg/JointState
+  fields:
+    name: string[]      # ["joint1", "joint2", "joint3", "joint4"]
+    position: float64[] # radians
